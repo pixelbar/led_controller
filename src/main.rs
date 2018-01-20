@@ -114,13 +114,52 @@ impl BlockColorTrait for (Block, Color) {
     }
 }
 
+fn configure_usart(usart: &peripherals::USART1, rcc: &peripherals::RCC, afio: &peripherals::AFIO, gpiob: &peripherals::GPIOB) {
+    rcc.apb2enr.modify(|_, w|
+        w.usart1en().enabled()
+         .afioen().enabled()
+    );
+    afio.mapr.modify(|_, w|
+        w.usart1_remap().set_bit()
+    );
+    gpiob.crl.modify(|_, w|
+        w.mode6().output().cnf6().alt_push() // alt_open?
+         .mode7().input().cnf7().bits(0b01)
+    );
+    usart.cr2.write(|w| unsafe {
+        w.stop().bits(0b00)
+    });
+    usart.cr3.write(|w| 
+        w.rtse().clear_bit()
+         .ctse().clear_bit()
+         .dmat().set_bit()
+         .dmar().set_bit()
+    );
+    const BAUD_RATE: u32 = 115200;
+    const BRR: u16 = (8_000_000 / BAUD_RATE) as u16;
+    usart.brr.write(|w| unsafe {
+        w.div_fraction().bits((BRR & 0b1111) as u8)
+         .div_mantissa().bits(BRR >> 4)
+    });
+    usart.cr1.write(|w|
+        w.ue().set_bit()
+         .re().set_bit()
+         .te().set_bit()
+         .pce().clear_bit()
+         .rxneie().clear_bit()
+         // .over8().clear_bit()
+    );
+}
+
 // const BUFFER_SIZE: usize = 100 * core::mem::size_of::<Frame>();
 
 fn main() {
-    let rcc = unsafe { &*peripherals::RCC.get() };
-    let flash = unsafe { &*peripherals::FLASH.get() };
-    let gpioa = unsafe { &*peripherals::GPIOA.get() };
-    let gpiob = unsafe { &*peripherals::GPIOB.get() };
+    let rcc: &peripherals::RCC = unsafe { &*peripherals::RCC.get() };
+    let flash: &peripherals::FLASH = unsafe { &*peripherals::FLASH.get() };
+    let gpioa: &peripherals::GPIOA = unsafe { &*peripherals::GPIOA.get() };
+    let gpiob: &peripherals::GPIOB = unsafe { &*peripherals::GPIOB.get() };
+    let usart: &peripherals::USART1 = unsafe { &*peripherals::USART1.get() };
+    let afio: &peripherals::AFIO = unsafe { &*peripherals::AFIO.get() };
 
     let mut frames: [Frame;100] = unsafe { ::core::mem::zeroed() };
     // let mut buffer: [u8; BUFFER_SIZE] = unsafe { ::core::mem::uninitialized() };
@@ -132,7 +171,11 @@ fn main() {
     (Block::Block4, Color::White).apply(&mut frames[0]);
 
     configure(&rcc, &gpioa, &gpiob);
+    configure_usart(&usart, &rcc, &afio, &gpiob);
     make_go_faster(&rcc, &flash);
+    usart.dr.write(|w| unsafe {
+        w.dr().bits(u16::from('X' as u8))
+    });
 
     loop {
         for frame in frames.iter() {
