@@ -11,8 +11,6 @@ extern crate panic_semihosting;
 extern crate panic_abort;
 
 extern crate embedded_hal;
-#[macro_use]
-extern crate nb;
 extern crate stm32f103xx_hal;
 // extern crate panic_abort; // requires nightly
 // extern crate panic_itm; // logs messages over ITM; requires ITM support
