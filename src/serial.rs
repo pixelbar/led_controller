@@ -1,11 +1,14 @@
-use nb::Error;
-use stm32f103xx_hal::afio::MAPR;
-use stm32f103xx_hal::prelude::*;
-use stm32f103xx_hal::rcc::{Clocks, APB2};
-use stm32f103xx_hal::serial::{Pins, Rx, Serial, Tx};
-use stm32f103xx_hal::stm32f103xx::USART1;
 use arrayref::array_refs;
 use nb::block;
+use nb::Error;
+
+use stm32f1xx_hal::{
+    afio::MAPR,
+    pac::USART1,
+    prelude::*,
+    rcc::Clocks,
+    serial::{Config, Pins, Rx, Serial, Tx},
+};
 
 pub struct Color {
     pub red_brightness: u8,
@@ -46,12 +49,17 @@ impl SerialConnector {
         rx: TRxPin,
         mapr: &mut MAPR,
         clocks: Clocks,
-        apb2: &mut APB2,
     ) -> Self
     where
         (TTxPin, TRxPin): Pins<USART1>,
     {
-        let serial = Serial::usart1(usart, (tx, rx), mapr, 9_600.bps(), clocks, apb2);
+        let serial = Serial::usart1(
+            usart,
+            (tx, rx),
+            mapr,
+            Config::default().baudrate(9600.bps()),
+            clocks,
+        );
         let (tx, rx) = serial.split();
         SerialConnector {
             tx,

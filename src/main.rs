@@ -1,28 +1,10 @@
 #![no_std]
 #![no_main]
 
-// pick a panicking behavior
-// dev profile: easier to debug panics; can put a breakpoint on `rust_begin_unwind`
-#[cfg(debug_assertions)]
-extern crate panic_semihosting;
+use panic_semihosting as _;
 
-// release profile: minimize the binary size of the application
-#[cfg(not(debug_assertions))]
-extern crate panic_abort;
-
-extern crate embedded_hal;
-extern crate stm32f103xx_hal;
-// extern crate panic_abort; // requires nightly
-// extern crate panic_itm; // logs messages over ITM; requires ITM support
-// extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
-
-// use core::fmt::Write;
 use cortex_m_rt::entry;
-use cortex_m_semihosting::hio;
-
-use stm32f103xx_hal::delay::Delay;
-use stm32f103xx_hal::prelude::*;
-use stm32f103xx_hal::stm32f103xx;
+use stm32f1xx_hal::{pac, prelude::*};
 
 mod group;
 mod serial;
@@ -32,19 +14,14 @@ use self::serial::SerialConnector;
 
 #[entry]
 fn main() -> ! {
-    let dp = stm32f103xx::Peripherals::take().unwrap();
-    let cp = cortex_m::Peripherals::take().unwrap();
-
+    let dp = pac::Peripherals::take().unwrap();
     let mut flash = dp.FLASH.constrain();
     let mut rcc = dp.RCC.constrain();
 
     let clocks = rcc.cfgr.freeze(&mut flash.acr);
-    let mut afio = dp.AFIO.constrain(&mut rcc.apb2);
-    let mut gpioa = dp.GPIOA.split(&mut rcc.apb2);
-    let mut gpiob = dp.GPIOB.split(&mut rcc.apb2);
-
-    let _delay = Delay::new(cp.SYST, clocks);
-    let _stdout = hio::hstdout().unwrap();
+    let mut afio = dp.AFIO.constrain();
+    let mut gpioa = dp.GPIOA.split();
+    let mut gpiob = dp.GPIOB.split();
 
     let mut kitchen = Group::new(
         gpioa.pa0.into_push_pull_output(&mut gpioa.crl),
@@ -77,7 +54,6 @@ fn main() -> ! {
         gpiob.pb7,
         &mut afio.mapr,
         clocks,
-        &mut rcc.apb2,
     );
 
     let mut frame = 0;
