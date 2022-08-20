@@ -1,6 +1,6 @@
-use core::num::NonZeroU8;
 use crate::serial::Color;
-use embedded_hal::digital::OutputPin;
+use core::num::NonZeroU8;
+use embedded_hal::digital::v2::OutputPin;
 
 pub struct GroupColor<TPin> {
     pin: TPin,
@@ -20,13 +20,13 @@ impl<TPin: OutputPin> GroupColor<TPin> {
     fn update(&mut self, frame: u8) {
         if frame == 0 {
             if self.off_index.is_some() {
-                self.pin.set_high();
+                let _ = self.pin.set_high();
             } else {
-                self.pin.set_low();
+                let _ = self.pin.set_low();
             }
         } else if let Some(off_index) = self.off_index {
             if frame == off_index.get() {
-                self.pin.set_low();
+                let _ = self.pin.set_low();
             }
         }
     }
